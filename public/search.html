@@ -13,6 +13,12 @@
             <nav>
                 <a href="index.html">Página Inicial</a>
                 <a href="announce.html">Anunciar Livro</a>
+                <span id="registerLoginButtons">
+                    <a href="register.html">Cadastro</a>
+                    <a href="login.html">Login</a>
+                </span>
+                <a href="user.html" id="userAreaLink" style="display: none;">Área do Usuário</a>
+               
             </nav>
         </header>
         <main>
@@ -34,6 +40,34 @@
             </section>
         </main>
     </div>
+
+    <!-- Modal de Chat -->
+    <div id="chatModal" class="modal">
+        <div class="modal-content">
+            <span class="close">&times;</span>
+            <h2>Chat com o Anunciante</h2>
+            <div id="chatMessages"></div>
+            <form id="chatForm">
+                <input type="text" id="messageInput" placeholder="Digite sua mensagem...">
+                <button type="submit">Enviar</button>
+            </form>
+        </div>
+    </div>
+
     <script src="js/search.js"></script>
+    <script>
+        // Verifica se o usuário está autenticado
+        fetch('/user-info')
+            .then(response => {
+                if (response.ok) {
+                    document.getElementById('registerLoginButtons').style.display = 'none';
+                    document.getElementById('userAreaLink').style.display = 'inline-block';
+                    document.getElementById('logoutLink').style.display = 'inline-block';
+                }
+            })
+            .catch(error => {
+                console.error('Erro ao verificar autenticação:', error);
+            });
+    </script>
 </body>
 </html>
