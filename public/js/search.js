@@ -1,10 +1,13 @@
 document.addEventListener('DOMContentLoaded', () => {
     const searchForm = document.getElementById('search-form');
     const resultsList = document.getElementById('results-list');
+    const chatModal = document.getElementById('chatModal');
+    const closeChatBtn = document.querySelector('.close');
+    const chatMessages = document.getElementById('chatMessages');
+    const chatForm = document.getElementById('chatForm');
 
     searchForm.addEventListener('submit', (e) => {
         e.preventDefault();
-        console.log('Clicou em pesquisar'); // Adicionando um console.log para verificar se o evento está sendo acionado
 
         const searchTerm = document.getElementById('search-term').value;
         const searchType = document.getElementById('search-type').value;
@@ -23,7 +26,6 @@ document.addEventListener('DOMContentLoaded', () => {
             resultsList.innerHTML = '<li>Erro durante a busca. Tente novamente mais tarde.</li>';
         });
     }
-    
 
     function displayBooks(books) {
         resultsList.innerHTML = '';
@@ -34,15 +36,54 @@ document.addEventListener('DOMContentLoaded', () => {
                 const li = document.createElement('li');
                 li.innerHTML = `
                     <h3>${book.title}</h3>
-                    <h4> Autor: ${book.author}</h4>
+                    <h4>Autor: ${book.author}</h4>
                     <p>Deseja: ${book.desiredBooks}</p>
-                    <p>Email: ${book.email || 'Não informado'} 
+                    <p>Email: ${book.email || 'Não informado'}</p>
                     <p>Celular: ${book.phone || 'Não informado'}</p>
                     <p>Cidade: ${book.city || 'Não informada'}</p>
                 `;
+
+                // Botão "Fechar Negócio"
+                const closeButton = document.createElement('button');
+                closeButton.textContent = 'Fechar Negócio';
+                closeButton.classList.add('close-deal-btn'); // Adiciona classe para estilização
+                closeButton.addEventListener('click', () => {
+                    openChatModal(book.email); // Chama a função para abrir o modal de chat com o email do anunciante
+                });
+
+                li.appendChild(closeButton);
                 resultsList.appendChild(li);
             });
         }
-    }    
-    
+    }
+
+    // Função para abrir o modal de chat com o anunciante
+    function openChatModal(email) {
+        // Aqui você pode preencher informações adicionais do anunciante no modal de chat, se necessário
+        chatModal.style.display = 'block'; // Exibe o modal de chat
+
+        // Evento para fechar o modal de chat ao clicar no botão de fechar (X)
+        closeChatBtn.addEventListener('click', () => {
+            chatModal.style.display = 'none';
+        });
+
+        // Evento para enviar mensagem no chat
+        chatForm.addEventListener('submit', (e) => {
+            e.preventDefault();
+            const message = document.getElementById('messageInput').value;
+            // Aqui você enviaria a mensagem para o anunciante, implementando a lógica necessária
+            // Pode enviar a mensagem via WebSocket ou outro método, dependendo da sua arquitetura
+            // Aqui apenas um exemplo de atualização visual da interface
+            displayMessage('Você', message); // Exibe a mensagem enviada na interface
+            document.getElementById('messageInput').value = ''; // Limpa o campo de mensagem após enviar
+        });
+    }
+
+    // Função para exibir mensagens no chat
+    function displayMessage(sender, message) {
+        const msgDiv = document.createElement('div');
+        msgDiv.classList.add('message');
+        msgDiv.innerHTML = `<strong>${sender}:</strong> ${message}`;
+        chatMessages.appendChild(msgDiv);
+    }
 });
