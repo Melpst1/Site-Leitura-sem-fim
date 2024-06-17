@@ -1,4 +1,5 @@
 const express = require('express');
+const multer = require('multer');
 const sqlite3 = require('sqlite3').verbose();
 const bodyParser = require('body-parser');
 const path = require('path');
@@ -17,6 +18,7 @@ const db = new sqlite3.Database(dbPath, (err) => {
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true }));
 app.use(express.static('public'));
+app.use(express.static('uploads'));
 app.use(session({
     secret: 'your-secret-key',
     resave: false,
@@ -25,7 +27,13 @@ app.use(session({
 
 // Criação das tabelas
 db.serialize(() => {
-    db.run("CREATE TABLE IF NOT EXISTS usuarios (id INTEGER PRIMARY KEY AUTOINCREMENT, nome TEXT, email TEXT, senha TEXT, reg_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP)", (err) => {
+    db.run(`CREATE TABLE IF NOT EXISTS usuarios (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        nome TEXT,
+        email TEXT,
+        senha TEXT,
+        reg_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )`, (err) => {
         if (err) {
             console.error('Erro ao criar tabela usuarios:', err.message);
         } else {
@@ -33,7 +41,16 @@ db.serialize(() => {
         }
     });
 
-    db.run("CREATE TABLE IF NOT EXISTS books (id INTEGER PRIMARY KEY AUTOINCREMENT, title TEXT, author TEXT, desiredBooks TEXT, email TEXT, phone TEXT, city TEXT)", (err) => {
+    db.run(`CREATE TABLE IF NOT EXISTS books (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        title TEXT,
+        author TEXT,
+        desiredBooks TEXT,
+        email TEXT,
+        phone TEXT,
+        city TEXT,
+        bookImage TEXT
+    )`, (err) => {
         if (err) {
             console.error('Erro ao criar tabela books:', err.message);
         } else {
@@ -54,16 +71,13 @@ function isAuthenticated(req, res, next) {
 app.post('/cadastro', (req, res) => {
     const { nome, email, senha } = req.body;
 
-    // Verifique se os dados estão chegando corretamente
     console.log('Dados recebidos para cadastro:', req.body);
 
-    // Verifica se todos os campos obrigatórios estão preenchidos
     if (!nome || !email || !senha) {
         console.error('Erro: Campos obrigatórios faltando');
         return res.status(400).json({ message: 'Preencha todos os campos obrigatórios.' });
     }
 
-    // Insere o novo usuário no banco de dados
     const query = `INSERT INTO usuarios (nome, email, senha) VALUES (?, ?, ?)`;
     db.run(query, [nome, email, senha], function(err) {
         if (err) {
@@ -112,27 +126,69 @@ app.get('/user-info', isAuthenticated, (req, res) => {
     });
 });
 
-// Rota para adicionar um livro
-app.post('/add-book', isAuthenticated, (req, res) => {
-    const { title, author, desiredBooks, phone, city } = req.body;
-    const email = req.session.userEmail;
-
-    console.log('Dados recebidos para adicionar livro:', req.body);
-
-    if (!title || !author || !desiredBooks || !email || !phone || !city) {
-        return res.status(400).json({ message: 'Preencha todos os campos obrigatórios.' });
+// Configuração do multer para upload de arquivos
+const storage = multer.diskStorage({
+    destination: './uploads/',
+    filename: function(req, file, cb) {
+        cb(null, file.fieldname + '-' + Date.now() + path.extname(file.originalname));
     }
+});
 
-    const stmt = db.prepare("INSERT INTO books (title, author, desiredBooks, email, phone, city) VALUES (?, ?, ?, ?, ?, ?)");
-    stmt.run(title, author, desiredBooks, email, phone, city, function(err) {
+const upload = multer({
+    storage: storage,
+    limits: { fileSize: 1000000 }, // limite de tamanho do arquivo para 1MB
+    fileFilter: function(req, file, cb) {
+        checkFileType(file, cb);
+    }
+}).single('bookImage');
+
+// Função para checar o tipo do arquivo
+function checkFileType(file, cb) {
+    // Extensões permitidas
+    const filetypes = /jpeg|jpg|png|gif/;
+    // Verifica a extensão
+    const extname = filetypes.test(path.extname(file.originalname).toLowerCase());
+    // Verifica o tipo mime
+    const mimetype = filetypes.test(file.mimetype);
+
+    if (mimetype && extname) {
+        return cb(null, true);
+    } else {
+        cb('Erro: Apenas imagens são permitidas!');
+    }
+}
+
+app.set('view engine', 'ejs');
+
+// Rota para adicionar um livro com upload de imagem
+app.post('/add-book', isAuthenticated, (req, res) => {
+    upload(req, res, (err) => {
         if (err) {
-            console.error('Erro ao adicionar livro:', err.message);
-            return res.status(500).json({ message: 'Erro ao adicionar livro' });
+            console.error('Erro ao fazer upload do arquivo:', err);
+            return res.status(500).json({ message: 'Erro ao fazer upload do arquivo' });
         }
-        console.log('Livro adicionado com sucesso!', { id: this.lastID });
-        res.json({ message: 'Livro adicionado com sucesso!', bookID: this.lastID });
+
+        const { title, author, desiredBooks, phone, city } = req.body;
+        const email = req.session.userEmail;
+        const bookImage = req.file ? req.file.filename : null;
+
+        console.log('Dados recebidos para adicionar livro:', req.body);
+
+        if (!title || !author || !desiredBooks || !email || !phone || !city) {
+            return res.status(400).json({ message: 'Preencha todos os campos obrigatórios.' });
+        }
+
+        const stmt = db.prepare(`INSERT INTO books (title, author, desiredBooks, email, phone, city, bookImage) VALUES (?, ?, ?, ?, ?, ?, ?)`);
+        stmt.run(title, author, desiredBooks, email, phone, city, bookImage, function(err) {
+            if (err) {
+                console.error('Erro ao adicionar livro:', err.message);
+                return res.status(500).json({ message: 'Erro ao adicionar livro' });
+            }
+            console.log('Livro adicionado com sucesso!', { id: this.lastID });
+            res.json({ message: 'Livro adicionado com sucesso!', bookID: this.lastID });
+        });
+        stmt.finalize();
     });
-    stmt.finalize();
 });
 
 // Rota para obter todos os livros
@@ -147,12 +203,40 @@ app.get('/get-books', (req, res) => {
     });
 });
 
+// Rota para excluir um livro
+app.delete('/delete-book/:id', isAuthenticated, (req, res) => {
+    const bookId = req.params.id;
+    const email = req.session.userEmail; // Obtém o email do usuário da sessão
+
+    const query = `DELETE FROM books WHERE id = ? AND email = ?`;
+    db.run(query, [bookId, email], function(err) {
+        if (err) {
+            console.error('Erro ao excluir livro:', err.message);
+            return res.status(500).json({ message: 'Erro ao excluir livro' });
+        }
+        if (this.changes === 0) {
+            return res.status(404).json({ message: 'Livro não encontrado ou você não tem permissão para excluí-lo' });
+        }
+        console.log('Livro excluído com sucesso!', { id: bookId });
+        res.json({ message: 'Livro excluído com sucesso!' });
+    });
+});
+
+// Rota para logout
+app.post('/logout', (req, res) => {
+    req.session.destroy((err) => {
+        if (err) {
+            console.error('Erro ao fazer logout:', err);
+            return res.status(500).json({ message: 'Erro ao fazer logout' });
+        }
+        res.json({ message: 'Logout realizado com sucesso!' });
+    });
+});
 
 // Rota para servir a página inicial
 app.get('/', (req, res) => {
     res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
-
 
 // Rota para a área do usuário
 app.get('/user', isAuthenticated, (req, res) => {
