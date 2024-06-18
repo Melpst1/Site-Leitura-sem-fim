@@ -31,7 +31,8 @@ function addBook(book) {
             // Atualizar a lista de livros
             displayBooks();
         } else {
-            alert('Erro ao adicionar livro: ' + data.message); // Mostrar mensagem de erro do servidor, se houver
+            alert(data.message); // Mostrar mensagem de erro do servidor, se houver
+            bookForm.reset();
         }
     })
     .catch(error => {

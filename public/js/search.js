@@ -5,6 +5,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const closeChatBtn = document.querySelector('.close');
     const chatMessages = document.getElementById('chatMessages');
     const chatForm = document.getElementById('chatForm');
+    const messageInput = document.getElementById('messageInput');
 
     searchForm.addEventListener('submit', (e) => {
         e.preventDefault();
@@ -46,9 +47,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 // Botão "Fechar Negócio"
                 const closeButton = document.createElement('button');
                 closeButton.textContent = 'Fechar Negócio';
-                closeButton.classList.add('close-deal-btn'); // Adiciona classe para estilização
+                closeButton.classList.add('close-deal-btn');
                 closeButton.addEventListener('click', () => {
-                    openChatModal(book.email); // Chama a função para abrir o modal de chat com o email do anunciante
+                    openChatModal(book.email);
                 });
 
                 li.appendChild(closeButton);
@@ -57,33 +58,35 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    // Função para abrir o modal de chat com o anunciante
     function openChatModal(email) {
-        // Aqui você pode preencher informações adicionais do anunciante no modal de chat, se necessário
-        chatModal.style.display = 'block'; // Exibe o modal de chat
+        chatModal.style.display = 'block';
+        chatMessages.innerHTML = ''; // Limpa as mensagens anteriores
 
-        // Evento para fechar o modal de chat ao clicar no botão de fechar (X)
-        closeChatBtn.addEventListener('click', () => {
+        closeChatBtn.onclick = () => {
             chatModal.style.display = 'none';
-        });
+        };
 
-        // Evento para enviar mensagem no chat
-        chatForm.addEventListener('submit', (e) => {
+        window.onclick = (event) => {
+            if (event.target === chatModal) {
+                chatModal.style.display = 'none';
+            }
+        };
+
+        chatForm.onsubmit = (e) => {
             e.preventDefault();
-            const message = document.getElementById('messageInput').value;
-            // Aqui você enviaria a mensagem para o anunciante, implementando a lógica necessária
-            // Pode enviar a mensagem via WebSocket ou outro método, dependendo da sua arquitetura
-            // Aqui apenas um exemplo de atualização visual da interface
-            displayMessage('Você', message); // Exibe a mensagem enviada na interface
-            document.getElementById('messageInput').value = ''; // Limpa o campo de mensagem após enviar
-        });
+            const message = messageInput.value.trim();
+            if (message) {
+                displayMessage('Você', message);
+                messageInput.value = '';
+            }
+        };
     }
 
-    // Função para exibir mensagens no chat
     function displayMessage(sender, message) {
         const msgDiv = document.createElement('div');
         msgDiv.classList.add('message');
         msgDiv.innerHTML = `<strong>${sender}:</strong> ${message}`;
         chatMessages.appendChild(msgDiv);
+        chatMessages.scrollTop = chatMessages.scrollHeight; // Rolagem automática para a última mensagem
     }
 });
